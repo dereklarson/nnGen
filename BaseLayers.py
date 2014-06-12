@@ -18,7 +18,8 @@ class InputLayer(object):
         out = self.x
         if use_dropout:
             out = out.flatten(2)
-            mask = NNl.GenMask(self.srng, out.shape, self.p_retain)
+            num_str = NNl.GetNumStreams(self.out_shape[0])
+            mask = NNl.GenMask(self.srng, out.shape, self.p_retain, num_str)
             out = out * mask / self.p_retain
         return out
 

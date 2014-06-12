@@ -7,15 +7,14 @@ import theano.tensor as T
 Tfloat = theano.config.floatX
 Tsh = theano.shared
 
-myNS = 1280
 MAX_CHANNELS = 20
 
 def GenWeights(rng, Wshape, mean, std):
     weights = rng.normal(mean, std, size=Wshape)
     return np.asarray(weights, dtype=Tfloat)
 
-def GenMask(srng, out_shape, p_retain):
-    mask = srng.binomial(out_shape, p=p_retain, dtype='int32', nstreams=myNS)
+def GenMask(srng, out_shape, p_retain, num_str=1024):
+    mask = srng.binomial(out_shape, p=p_retain, dtype='int32', nstreams=num_str)
     return T.cast(mask, Tfloat)
 
 def GenAug(rng, jitter, flip):
@@ -24,7 +23,7 @@ def GenAug(rng, jitter, flip):
     out3 = rng.randint(0, 2, 1) * 2 - 1 if flip[1] else [1]
     return np.asarray(np.concatenate((out1, out2, out3)), dtype='int32')
 
-def GetTBatch(data, index, batch_size, in_dim):
+def GetBatch_0(data, index, batch_size):
     batch = data[index * batch_size:(index + 1) * batch_size]
     return batch
 
@@ -76,20 +75,25 @@ def shareloader(infile, do_valid=True, cut=-1, channels=-1):
         validation.append(Tsh(np.asarray(label[cut:], dtype=Tfloat)))
         print "done\n", desc
         print "###", len(data[:cut]), "training and", len(data[cut:]), "val. samples"
-        return training, validation, [channels, in_dims, out_dim]
+        return training, validation, desc, [channels, in_dims, out_dim]
     else:
         training.append(Tsh(np.asarray(data, dtype=Tfloat)))
         training.append(Tsh(np.asarray(label, dtype=Tfloat)))
         print "done\n", desc
         print "###", len(data), "test samples (no validation)"
-        return training, [channels, in_dims, out_dim]
+        return training, None, desc, [channels, in_dims, out_dim]
 
 def pm1(srng):
     return T.cast(srng.uniform() > 0.5, dtype=int32) * 2 - 1
 
-def RandInt(srng, low=0, high=2):
-    out = srng.uniform(size=(1,), dtype=Tfloat, nstreams=myNS) * high + low
+def RandInt(srng, low=0, high=2, num_str=1024):
+    out = srng.uniform(size=(1,), dtype=Tfloat, nstreams=num_str) * high + low
     return T.cast(T.floor(out), 'int32')
+
+def GetNumStreams(size):
+    ret = 2
+    while (ret < size): ret *= 2
+    return ret
 
 def NiceTime(sec_in):
     seconds = int(sec_in) % 60

@@ -36,6 +36,7 @@ class FCLayer(object):
             x = x.flatten(2)
         out = self.activation(T.dot(x, self.W) + self.b)
         if use_dropout:
-            self.mask = NNl.GenMask(self.srng, self.out_shape, self.p_retain)
+            num_str = NNl.GetNumStreams(self.out_shape[0])
+            self.mask = NNl.GenMask(self.srng, self.out_shape, self.p_retain, num_str)
             out = out * self.mask / self.p_retain
         return out

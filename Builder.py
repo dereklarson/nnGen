@@ -1,3 +1,5 @@
+from __future__ import print_function
+import sys
 import numpy as np
 import cPickle as cp
 import theano
@@ -16,22 +18,22 @@ LC = {'Output': OutputLayer, 'FCLayer': FCLayer, 'Conv': ConvLayer, 'Input': Inp
 AC = {'ReLU': ReLU, 'RectScaleTanh': RectScaleTanh, 'Linear': None}
 
 class Model:
-    def __init__(self, rngs, model_x, in_shape, filename="Structure"):
+    def __init__(self, rngs, x_model, in_shape, struc_file="Structure"):
 
-        self.x = model_x
         self.rngs = rngs
+        self.x = x_model
         self.x_shape = in_shape
         self.jitter = 0
         self.flipX = 0
         self.flipY = 0
         self.best_error = np.inf
 
-        if filename == "":
-            print "Using 'model_cp' file to load structure and params"
+        if struc_file == "":
+            print("Using 'model_cp' file to load structure and params")
             self.load_model()
         else:
-            print "Building model from 'Structure':"
-            self.layer_info = self.read_structure(filename)
+            print("Building model from 'Structure':")
+            self.layer_info = self.read_structure(struc_file)
             self.generate_shapes()
             self.craft_layers()
 
@@ -110,31 +112,31 @@ class Model:
             self.params += self.layers[i].params
             self.pdecay += self.layers[i].pdecay
 
-    def layer_splash(self, layer):
+    def layer_splash(self, layer, output=sys.stdout):
         if layer['type'] == "Input":
-            print ("Augmentation -- jitter: {}  flipX: {}  flipY: {}".format(\
-                    self.jitter, self.flipX, self.flipY))
             print("> Input has shape {} and dropout: {}".format( \
-                    layer['shape'], layer['dropout']))
+                    layer['shape'], layer['dropout']), file=output)
+            print ("#  Augmentation -- jitter: {}  flipX: {}  flipY: {}".format(\
+                    self.jitter, self.flipX, self.flipY), file=output)
         elif layer['type'] == "Conv":
             print("+ Convolution: {} filters {} padding: {} initW: {}  decayW: {}".format( \
                     layer['shape'][1][1], layer['shape'][1][2:], 
-                    layer['padding'], layer['initW'], layer['decayW']))
+                    layer['padding'], layer['initW'], layer['decayW']), file=output)
         elif layer['type'] == "Pool":
             in_1 = layer['shape'][2]
             pool = layer['pool']
             print("V Pool: scale {} for output: {} channels x {}".format( \
-                    pool, layer['shape'][1], (in_1 / pool, in_1 / pool)))
+                    pool, layer['shape'][1], (in_1 / pool, in_1 / pool)), file=output)
         elif layer['type'] == "FCLayer":
             print("* FCLayer with shape {}  initW: {}  decayW: {}  dropout: {}".format( \
-                    layer['shape'], layer['initW'], layer['decayW'], layer['dropout']))
+                    layer['shape'], layer['initW'], layer['decayW'], layer['dropout']), file=output)
         elif layer['type'] == "Output":
             print("= Output neurons: {} initW: {}  decayW: {}".format( \
-                    layer['shape'], layer['initW'], layer['decayW']))
+                    layer['shape'], layer['initW'], layer['decayW']), file=output)
         else:
             print("? {} with shape {} initW: {}  decayW: {}".format( \
                     layer['type'], layer['shape'], layer['initW'],
-                    layer['decayW']))
+                    layer['decayW']), file=output)
 
     def save_model(self, val_error):
         cp.dump([[i.get_value() for i in self.params], self.layer_info, val_error], \
@@ -142,9 +144,15 @@ class Model:
 
     def load_model(self):
         temp_params, self.layer_info, val_error = cp.load(open("model_cp"))
-        self.jitter = self.layer_info[0]['jitter']
+        self.jitter = self.flipX = self.flipY = 0
+        if 'jitter' in self.layer_info[0]:
+            self.jitter = self.layer_info[0]['jitter']
+        if 'flipX' in self.layer_info[0]:
+            self.flipX = self.layer_info[0]['flipX']
+        if 'flipY' in self.layer_info[0]:
+            self.flipY = self.layer_info[0]['flipY']
         self.craft_layers()
-        print 'Previous best validation:', val_error
+        print('Previous best validation:', val_error)
         self.best_error = val_error
         for i in range(len(temp_params)):
             self.params[i].set_value(temp_params[i])
