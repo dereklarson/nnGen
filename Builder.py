@@ -11,12 +11,14 @@ from ConvLayers import ConvLayer, PoolLayer
 from NNlib import ReLU, RectScaleTanh, JShift, find_type
 from theano.sandbox.rng_mrg import MRG_RandomStreams as MRG_RStreams
 
+# These are keywords that must be used in the Structure file
 dict_data = ["type", "traits", "activation", "nKernels", "filter_size", "pool", "neurons", \
         "padding", "dropout", "initW", "decayW", "flipX", "flipY", "jitter"]
 LC = {'Output': OutputLayer, 'FCLayer': FCLayer, 'Conv': ConvLayer, 'Input': InputLayer, \
         'Pool': PoolLayer}
 AC = {'ReLU': ReLU, 'RectScaleTanh': RectScaleTanh, 'Linear': None}
 
+# Class for creating neural network architechture
 class Model:
     def __init__(self, rngs, x_model, in_shape, struc_file="Structure"):
 

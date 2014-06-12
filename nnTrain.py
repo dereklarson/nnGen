@@ -10,6 +10,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as MRG_RStreams
 import NNlib as NNl                 #Helper library with useful functions
 from Builder import Model           #This is the class for NN architecture
 
+# While profiling, code will run for one validation period and exit w/summary
 profiling = False
 
 def train_NN(CPFile="", n_epochs=1000, rho=0.90, LR=0.010, channels=-1, \
@@ -20,6 +21,10 @@ def train_NN(CPFile="", n_epochs=1000, rho=0.90, LR=0.010, channels=-1, \
         profmode = theano.ProfileMode(optimizer='fast_run', linker=theano.gof.OpWiseCLinker())
     else:
         profmode = None
+
+    #*********************************#
+    # LOAD DATA AND PREPARE VARIABLES #
+    #*********************************#
 
     # load the prepared dataset, already split for validation
     training, validation, description, info = NNl.shareloader("Dataset", True)
@@ -150,7 +155,6 @@ def train_NN(CPFile="", n_epochs=1000, rho=0.90, LR=0.010, channels=-1, \
 
             aug_in = NNl.GenAug(rng, CNN.jitter, [CNN.flipY, CNN.flipX])
             gain_momentum(batch_i, LR, aug_in)
-
             update_model()
 
             if (iter + 1) % int(n_train_batches / 5) == 0: print '.',
