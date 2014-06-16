@@ -8,11 +8,9 @@ In order to use the code, you need to prepare the dataset to the format I establ
 
 Download the training data and labels into your working directory and extract the training images, which should end up in `./images_train/`.  Then use the provided scripts:  
 
-`PrepData.py` -- this produces a pickled numpy array of the pixel data
-
-`PrepLabels.py` -- this produces a pickled numpy array of the labels
-
-`build_CIFAR10_dataset.py` -- combines the data, labels with some info to make a "Dataset"
+* `PrepData.py` -- this produces a pickled numpy array of the pixel data
+* `PrepLabels.py` -- this produces a pickled numpy array of the labels
+* `build_CIFAR10_dataset.py` -- combines the data, labels with some info to make a "Dataset"
 
 `nnTrain.py` will look for `Dataset` when running, as well as "Structure".
 
