@@ -30,7 +30,7 @@ def GetBatch_0(data, index, batch_size):
 def GetBatch(data, index, batch_size, in_dims, aug):
     batch = data[index * batch_size:(index + 1) * batch_size]
     x0, y0 = (aug[0], aug[1])
-    x1, y1 = (in_dims[0] + x0, in_dims[1] + y0)
+    x1, y1 = (in_dims[1] + x0, in_dims[0] + y0)
     batch = batch[:,:, y0:y1, x0:x1]  
     batch = batch[:,:, ::aug[2], ::aug[3]]  
     return batch
@@ -73,7 +73,7 @@ def shareloader(infile, do_valid=True, cut=-1, channels=-1):
         training.append(Tsh(np.asarray(label[:cut], dtype=Tfloat)))
         validation.append(Tsh(np.asarray(data[cut:], dtype=Tfloat)))
         validation.append(Tsh(np.asarray(label[cut:], dtype=Tfloat)))
-        print "done\n", desc
+        print "done\n", desc, in_dims
         print "###", len(data[:cut]), "training and", len(data[cut:]), "val. samples"
         return training, validation, desc, [channels, in_dims, out_dim]
     else:

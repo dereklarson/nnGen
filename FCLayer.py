@@ -22,7 +22,7 @@ class FCLayer(object):
             print "FC layer shape must be (2,), it is,", \
                     Lshape.shape
 
-        if traits['initW'] < 0: traits['initW'] = 0.01
+        if traits['initW'] < 0: traits['initW'] = 1./np.sqrt(Lshape[0])
         self.W = Tsh(NNl.GenWeights(self.rng, Lshape, 0, traits['initW']))
         self.b = Tsh(np.zeros(self.out_shape, dtype=Tfloat))
         self.Wd = Tsh(np.ones(Lshape, dtype=Tfloat) * traits['decayW'])

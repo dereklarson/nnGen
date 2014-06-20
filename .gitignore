@@ -1,0 +1,5 @@
+*.pyc
+comp/
+test_adaptive/
+model_cp
+log_train

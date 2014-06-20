@@ -30,13 +30,10 @@ class ConvLayer(object):
         fan_out = filter_shape[0] * np.prod(filter_shape[2:])
 
         # temporary test
-        if traits['initW'] < 0:
-            W_bound = np.sqrt(6. / (fan_in + fan_out))
-        else:
-            W_bound = traits['initW']
+        if traits['initW'] < 0: traits['initW'] = np.sqrt(6. / (fan_in + fan_out))
+        sig = traits['initW']
 
-        self.W = Tsh(np.asarray(self.rng.uniform(low=-W_bound, high=W_bound, size=filter_shape),
-            dtype=Tfloat))
+        self.W = Tsh(np.asarray(self.rng.uniform(-sig, sig, filter_shape), dtype=Tfloat))
         self.Wd = Tsh(np.ones(filter_shape, dtype=Tfloat) * traits['decayW'])
 
         # convolve input feature maps with filters

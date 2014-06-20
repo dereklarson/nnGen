@@ -136,8 +136,6 @@ def train_NN(CPFile="", n_epochs=1000, rho=0.90, LR=0.010, channels=-1, \
     print 'Training', n_epochs, 'epochs: val_fr =', validation_frequency, \
             "LR =", LR, "rho =", rho
 
-    epoch = iter = 0
-
     # If an iteration doesn't improve the validation score, we add the LR
     # to an accumulator and will reduce the LR if LR_tgt is reached
     LR_tgt = 10 * LR 
@@ -147,19 +145,19 @@ def train_NN(CPFile="", n_epochs=1000, rho=0.90, LR=0.010, channels=-1, \
     T_aug = [CNN.jitter / 2, CNN.jitter / 2, 1, 1]
 
     # Main training loop
+    epoch = 0
     while (epoch < n_epochs):
         epoch += 1
 
         for batch_i in xrange(n_train_batches):
-            iter += 1
 
             aug_in = NNl.GenAug(rng, CNN.jitter, [CNN.flipY, CNN.flipX])
             gain_momentum(batch_i, LR, aug_in)
             update_model()
 
-            if (iter + 1) % int(n_train_batches / 5) == 0: print '.',
+            if (batch_i + 1) % int(n_train_batches / 5) == 0: print '.',
 
-            if (iter + 1) % validation_frequency == 0:
+            if (batch_i + 1) % validation_frequency == 0:
                 # compute error on test and validation set
                 c_train_error = [train_error(i, T_aug) for i in xrange(n_train_batches)]
                 err_train = np.mean(c_train_error)
