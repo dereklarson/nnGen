@@ -1,20 +1,25 @@
-import cPickle
-import gzip, os, sys, time
 import numpy as np
 
 import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
-from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
+from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
 
 Tfloat = theano.config.floatX
 Tsh = theano.shared
 
 class ConvLayer(object):
-    """Layer of a convolutional network """
-
+    """ This layer applies the convolution step to input data. This means 
+    rastering a square matrix ("filter") across the input. Usually, many 
+    parallel filters applied per layer (nKernels). It is possible to pad 
+    the borders with zeros so the convop output is the same size as the 
+    input. This implementation uses the pylearn2 FilterActs method, based 
+    on Alex Krizhevsky's speedy CUDA ConvNet code.
+    """
     def __init__(self, rngs, input_layer, shape_in, traits, activation):
+        self.tag = "Conv"
+        self.number = traits['number']
         image_shape = shape_in[0]
         filter_shape = shape_in[1]
         assert image_shape[1] == filter_shape[1]
@@ -51,12 +56,17 @@ class ConvLayer(object):
         self.params = [self.W]
         self.pdecay = [self.Wd]
 
-    def output(self, use_dropout=True):
+    def output(self, use_dropout=True, depth=0):
         return self.conv_out
 
 class PoolLayer(object):
-    """Pooling layer of a convolutional network """
+    """ This layer simply performs a MaxOut pooling, where a downsample 
+    factor N is specified, and for each NxN contiguous block of input the 
+    maximum value is taken as the output.
+    """
     def __init__(self, rngs, input_layer, Lshape, traits, activation):
+        self.tag = "Pool"
+        self.number = traits['number']
         self.input_layer = input_layer 
         self.layer_shape = Lshape
         self.pool_size = (traits['pool'], traits['pool'])
@@ -68,7 +78,7 @@ class PoolLayer(object):
         self.params = [self.b]
         self.pdecay = [self.bd]
 
-    def output(self, use_dropout=True):
+    def output(self, use_dropout=True, depth=0):
         # downsample each feature map individually, using maxpooling
         pool_out = downsample.max_pool_2d(input=self.input_layer.output(),
                                         ds=self.pool_size, ignore_border=True)

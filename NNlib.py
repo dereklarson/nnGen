@@ -1,4 +1,4 @@
-import cPickle, gzip
+import cPickle as cp
 import numpy as np
 
 import theano
@@ -9,93 +9,53 @@ Tsh = theano.shared
 
 MAX_CHANNELS = 20
 
-def GenWeights(rng, Wshape, mean, std):
+def gen_weights(rng, Wshape, mean, std):
+    """ Simple Gaussian generator used to init layer weights """
     weights = rng.normal(mean, std, size=Wshape)
     return np.asarray(weights, dtype=Tfloat)
 
-def GenMask(srng, out_shape, p_retain, num_str=1024):
-    mask = srng.binomial(out_shape, p=p_retain, dtype='int32', nstreams=num_str)
+def gen_mask(srng, out_shape, p_retain, n_str=1024):
+    """ Sets binary masks for use in dropout """
+    mask = srng.binomial(out_shape, p=p_retain, dtype='int32', nstreams=n_str)
     return T.cast(mask, Tfloat)
 
-def GenAug(rng, jitter, flip):
-    out1 = rng.randint(0, jitter+1, 2)
-    out2 = rng.randint(0, 2, 1) * 2 - 1 if flip[0] else [1]
-    out3 = rng.randint(0, 2, 1) * 2 - 1 if flip[1] else [1]
-    return np.asarray(np.concatenate((out1, out2, out3)), dtype='int32')
-
-def GetBatch_0(data, index, batch_size):
+def get_batch_0(data, index, batch_size):
+    """ Return a slice of data for SGD batching (labels)"""
     batch = data[index * batch_size:(index + 1) * batch_size]
     return batch
 
-def GetBatch(data, index, batch_size, in_dims, aug):
+def get_batch(data, index, batch_size, in_dims, aug):
+    """ Return a slice of augmented data (jitter, flip) for SGD batching """
     batch = data[index * batch_size:(index + 1) * batch_size]
     x0, y0 = (aug[0], aug[1])
-    x1, y1 = (in_dims[1] + x0, in_dims[0] + y0)
+    x1, y1 = (in_dims[0] + x0, in_dims[1] + y0)
     batch = batch[:,:, y0:y1, x0:x1]  
-    batch = batch[:,:, ::aug[2], ::aug[3]]  
+    batch = batch[:,:, ::aug[3], ::aug[2]]  
+#   batch = batch[:,:, y0:y1:aug[3], x0:x1:aug[2]]  
     return batch
 
-def JShift(curr_shape, shift):
-    return curr_shape[:-2] + (curr_shape[-2] - shift, curr_shape[-1] - shift)
+def j_shift(curr_shape, shiftX, shiftY):
+    """ Helper to modify the in_shape tuple by jitter amounts """
+    return curr_shape[:-2] + (curr_shape[-2] - shiftY, curr_shape[-1] - shiftX)
 
-def tShuffle(data, srng):
-    rows = data.shape[0]
-    ret = T.permute_row_elements(data.T, rng.permutation(n=rows)).T
-    return ret
+def prepare_log(model, description, fname="log_train"):
+    """ Open logfile and generate a header for it """
+    logfile = open(fname, 'w')
+    logfile.write("#Data: " + description + "\n")
+    for layer in model.layer_info:
+        logfile.write("#")
+        model.layer_splash(layer, logfile)
+    logfile.write("#time    epoch  LR      test      train     \n")
+    return logfile
 
-def ProcessInfo(info, data_shape, cut, channels):
-    if cut == -1:
-        if 'cut' in info:
-            cut = info['cut']
-        else:
-            cut = (9 * data_shape[0] / 10)
-            cut = cut - cut % 128
-    if channels == -1:
-        if len(data_shape) == 2 or data_shape[1] > MAX_CHANNELS:
-            print "Assuming no channel information"
-            channels = 1
-            shape_index = 1
-        else:
-            channels = data_shape[1]
-            shape_index = 2
-    in_dims = data_shape[shape_index:]
-    return cut, channels, in_dims, info['description']
-
-def shareloader(infile, do_valid=True, cut=-1, channels=-1):
-    print "loading data...", 
-    info, data, label = cPickle.load(open(infile, 'rb'))
-    cut, channels, in_dims, desc = ProcessInfo(info, data.shape, cut, channels)
-    out_dim = label.shape[1] if len(label.shape) > 1 else 1
-    training = []
-    if do_valid:
-        validation = []
-        training.append(Tsh(np.asarray(data[:cut], dtype=Tfloat)))
-        training.append(Tsh(np.asarray(label[:cut], dtype=Tfloat)))
-        validation.append(Tsh(np.asarray(data[cut:], dtype=Tfloat)))
-        validation.append(Tsh(np.asarray(label[cut:], dtype=Tfloat)))
-        print "done\n", desc, in_dims
-        print "###", len(data[:cut]), "training and", len(data[cut:]), "val. samples"
-        return training, validation, desc, [channels, in_dims, out_dim]
-    else:
-        training.append(Tsh(np.asarray(data, dtype=Tfloat)))
-        training.append(Tsh(np.asarray(label, dtype=Tfloat)))
-        print "done\n", desc
-        print "###", len(data), "test samples (no validation)"
-        return training, None, desc, [channels, in_dims, out_dim]
-
-def pm1(srng):
-    return T.cast(srng.uniform() > 0.5, dtype=int32) * 2 - 1
-
-def RandInt(srng, low=0, high=2, num_str=1024):
-    out = srng.uniform(size=(1,), dtype=Tfloat, nstreams=num_str) * high + low
-    return T.cast(T.floor(out), 'int32')
-
-def GetNumStreams(size):
+def get_num_streams(size):
+    """ Find how many streams to use for Theano RNG """
     ret = 2
     while (ret < size): ret *= 2
     return ret
 
-def NiceTime(sec_in):
+def nice_time(sec_in):
+    """ Pretty formatting for time stamps """
     seconds = int(sec_in) % 60
     minutes = int((sec_in / 60)) % 60
     hours = int(sec_in / 3600)
@@ -112,11 +72,29 @@ def find_type(string_in):
             None
     return out
 
-def ScaleTanh(x):
+def STanh(x):
+    """ Scaled tanh based on Y. LeCun's early suggestion """
     return 1.7159 * T.tanh(0.666666 * x)
 
-def RectScaleTanh(x):
+def RSTanh(x):
+    """ Rectified version of the above """
     return T.maximum(0., T.minimum(1., 1.7159 * T.tanh(0.666666 * x)))
 
 def ReLU(x):
     return T.maximum(0., x)
+
+def SoftReLU(x):
+    """ Version of the above with no cusps, for autoencoder training """
+    return T.log(1 + T.exp(x))
+
+def get_profiler(profiling, lang='c'):
+    if profiling:
+        if lang == 'c':
+            profmode = theano.ProfileMode(optimizer='fast_run', 
+                                        linker=theano.gof.OpWiseCLinker())
+        elif lang == 'py':
+            profmode = theano.ProfileMode(optimizer='fast_run', 
+                                        linker=theano.gof.PerformLinker())
+    else:
+        profmode = None
+    return profmode

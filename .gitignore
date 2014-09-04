@@ -1,4 +1,6 @@
 *.pyc
+*.tgz
+struc_*
 comp/
 test_adaptive/
 model_cp
