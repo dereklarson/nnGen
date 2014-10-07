@@ -11,7 +11,7 @@ and then needs to be added to your `PYTHONPATH` environment variable.
 
 ## Training a network
 
-Besides the working Python code, you need to:  prepare a formatted dataset, specify the network architecture in the file `Structure`, and perhaps tune some of the training parameters.
+Besides the working Python code, you need to:  prepare a formatted dataset, specify the network architecture in the file `structure`, and perhaps tune some of the training parameters.
 
 ### Dataset
 
@@ -25,7 +25,7 @@ Keep in mind that you should probably use normalized data (a natural choice bein
 
 ### Structure
 
-When you run `nnTrain.py`, it will look for a `Structure` file in the directory (or a model checkpoint file, to resume training). `Structure` contains all of the information needed to build the network, layer-by-layer. You are required to have both an Input and Output layer, and then any number of convolutional, pooling, or fully-connected layers in between. I suggest looking at the included example in this directory--it should be intuitive if you have some experience using NNs.
+When you run `nnMain.py`, it will look for a `structure` file in the directory (or a model checkpoint file, to resume training). `structure` contains all of the information needed to build the network, layer-by-layer. You are required to have both an Input and Output layer, and then any number of convolutional, pooling, or fully-connected layers in between. I suggest looking at the included example in this directory--it should be intuitive if you have some experience using NNs.
 
 ### Training parameters
 

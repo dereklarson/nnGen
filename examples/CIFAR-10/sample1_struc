@@ -1,18 +1,18 @@
 #HDR:  Structure for CNN
 ##layer 0
 type:		Input
-jitter:		0
-flipX:		0
+jitter:		8
+flipX:		1
 flipY:		0
 dropout:	0.2
 
 ##layer 1
 type:		Conv
-nKernels:	32
+nKernels:	64
 filter_size:	5  
 padding:	2
 initW:		0.1
-decayW:		0.004
+l2decay:	0.0004
 
 ##layer 2
 type:		Pool
@@ -21,11 +21,11 @@ activation:	ReLU
 
 ##layer 3
 type:		Conv
-nKernels:	32
+nKernels:	128
 filter_size:	5
 padding:	2
 initW:		0.1
-decayW:		0.004
+l2decay:	0.0004
 
 ##layer 4
 type:		Pool
@@ -33,27 +33,23 @@ pool:		2
 activation:	ReLU
 
 ##layer 5
-type:		Conv
-nKernels:	64
-filter_size:	5  
-padding:	2
-initW:		0.1
-decayW:		0.004
-
-##layer 6
-type:		Pool
-pool:		2
-activation:	ReLU
-
-##layer 7
-type:		FCLayer
-neurons:	64
+type:		FC
+neurons:	3000
 dropout:	0.5
 initW:		0.01
-decayW:		0.03
+l2decay:	0.003
 activation:	ReLU
 
-##layer output
+##layer 6
+type:		FC
+neurons:	3000
+dropout:	0.5
+initW:		0.01
+l2decay:	0.003
+activation:	ReLU
+
+##layer 8
 type:		Output
+initW:		0.01
+l2decay:	0.03
 neurons:	10
-activation:	RectScaleTanh

@@ -1,45 +1,63 @@
+""" This file contains two types of layers:  convolutional and pooling.
+These will be useful for applications in which features are locally
+correlated with their neighbors (notably images) and one usually applies
+a convolutional layer first and then a subsequent pooling layer.
+"""
+
+
 import numpy as np
 
 import theano
-import theano.tensor as T
 from theano.tensor.signal import downsample
 from theano.sandbox.cuda.basic_ops import gpu_contiguous
 from pylearn2.sandbox.cuda_convnet.filter_acts import FilterActs
+from pylearn2.sandbox.cuda_convnet.pool import MaxPool
+
+import NNlib as NNl
 
 Tfloat = theano.config.floatX
 Tsh = theano.shared
 
+
 class ConvLayer(object):
-    """ This layer applies the convolution step to input data. This means 
-    rastering a square matrix ("filter") across the input. Usually, many 
-    parallel filters applied per layer (nKernels). It is possible to pad 
-    the borders with zeros so the convop output is the same size as the 
-    input. This implementation uses the pylearn2 FilterActs method, based 
+
+    """ This layer applies the convolution step to input data. This means
+    rastering a square matrix ("filter") across the input. Usually, many
+    parallel filters applied per layer (nKernels). It is possible to pad
+    the borders with zeros so the convop output is the same size as the
+    input. This implementation uses the pylearn2 FilterActs method, based
     on Alex Krizhevsky's speedy CUDA ConvNet code.
+
+    Methods:
+        output: What the next layer will see. Applies activation and dropout.
+
+    Attributes:
+        tag: Signifier for the layer type.
+        rng: numpy rng (used for initialization)
+        input_layer: The layer which feeds into this one.
+        number: 'n' where this layer is the nth layer in your network,
+                starting from the Input as 0.
+        l2decay: L2 decay constant for this layer.
+        filter_shape: shape of the convolutional filter bank:
+            (kernels, channels, filter size, filter size)
+        pad: zeropadding for applying conv filter at all points
+        W: Weight matrix
+        params: Convenient wrapper of params for calculating the gradient.
+
     """
-    def __init__(self, rngs, input_layer, shape_in, traits, activation):
+
+    def __init__(self, rngs, input_layer, Lshape, traits, activation):
         self.tag = "Conv"
-        self.number = traits['number']
-        image_shape = shape_in[0]
-        filter_shape = shape_in[1]
-        assert image_shape[1] == filter_shape[1]
-        self.input_layer = input_layer 
         self.rng = rngs[0]
+        self.input_layer = input_layer
+        self.number = traits['number']
+        self.l2decay = traits['l2decay']
+        filter_shape = Lshape[1]
+        # The number of input channels must match number of filter channels
+        assert Lshape[0][1] == filter_shape[1]
         self.pad = traits['padding']
 
-        # there are "num input feature maps * filter height * filter width"
-        # inputs to each hidden unit
-        fan_in = np.prod(filter_shape[1:])
-        # each unit in the lower layer receives a gradient from:
-        # "num output feature maps * filter height * filter width"
-        fan_out = filter_shape[0] * np.prod(filter_shape[2:])
-
-        # temporary test
-        if traits['initW'] < 0: traits['initW'] = np.sqrt(6. / (fan_in + fan_out))
-        sig = traits['initW']
-
-        self.W = Tsh(np.asarray(self.rng.uniform(-sig, sig, filter_shape), dtype=Tfloat))
-        self.Wd = Tsh(np.ones(filter_shape, dtype=Tfloat) * traits['decayW'])
+        self.W = NNl.gen_weights(self.rng, filter_shape, 0, traits['initW'])
 
         # convolve input feature maps with filters
         # Using Alex K.'s fast CUDA conv, courtesy of S. Dieleman
@@ -54,32 +72,41 @@ class ConvLayer(object):
 
         # store parameters of this layer
         self.params = [self.W]
-        self.pdecay = [self.Wd]
 
     def output(self, use_dropout=True, depth=0):
+        """Just pass through for now"""
         return self.conv_out
 
 class PoolLayer(object):
-    """ This layer simply performs a MaxOut pooling, where a downsample 
-    factor N is specified, and for each NxN contiguous block of input the 
+
+    """ This layer simply performs a MaxOut pooling, where a downsample
+    factor N is specified, and for each NxN contiguous block of input the
     maximum value is taken as the output.
     """
+
     def __init__(self, rngs, input_layer, Lshape, traits, activation):
         self.tag = "Pool"
         self.number = traits['number']
-        self.input_layer = input_layer 
-        self.layer_shape = Lshape
+        self.input_layer = input_layer
         self.pool_size = (traits['pool'], traits['pool'])
         self.activation = activation
+        self.l2decay = traits['l2decay']
 
         self.b = Tsh(np.zeros((Lshape[1],), dtype=Tfloat))
-        self.bd = Tsh(np.zeros((Lshape[1],), dtype=Tfloat))
 
         self.params = [self.b]
-        self.pdecay = [self.bd]
 
     def output(self, use_dropout=True, depth=0):
-        # downsample each feature map individually, using maxpooling
-        pool_out = downsample.max_pool_2d(input=self.input_layer.output(),
-                                        ds=self.pool_size, ignore_border=True)
+        """ Downsamples the input data and apply activation """
+        conv_output = self.input_layer.output()
+        input_shuffled = (conv_output).dimshuffle(1, 2, 3, 0)
+        contiguous_input = gpu_contiguous(input_shuffled)
+        pool_op = MaxPool(ds=3, stride=self.pool_size[0])
+        out_shuffled = pool_op(contiguous_input)
+        pool_out = out_shuffled.dimshuffle(3, 0, 1, 2)  # c01b to bc01
+
+#       Theano routine
+#       pool_out = downsample.max_pool_2d(input=self.input_layer.output(),
+#                                       ds=self.pool_size, ignore_border=True)
+
         return self.activation(pool_out + self.b.dimshuffle('x', 0, 'x', 'x'))

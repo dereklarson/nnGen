@@ -1,24 +1,27 @@
 #HDR:  Structure for CNN
 ##layer 0
 type:		Input
+zeropad:	0
 jitter:		0
 flipX:		0
 flipY:		0
 dropout:	0.2
 
 ##layer 1
-type:		FCLayer
+type:		FC
 neurons:	800
 dropout:	0.5
+initW:		-1
 activation:	ReLU
 
 ##layer 2
-type:		FCLayer
+type:		FC
 neurons:	800
 dropout:	0.5
+initW:		-1
 activation:	ReLU
 
 ##layer out
 type:		Output
 neurons:	10
-activation:	RectScaleTanh
+initW:		-1

@@ -1,4 +1,7 @@
-import os, glob, time, cv2
+import os
+import glob
+import time
+import cv2
 import numpy as np
 import cPickle as cp
 

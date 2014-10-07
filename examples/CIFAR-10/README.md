@@ -12,13 +12,20 @@ Download the training data and labels into your working directory and extract th
 * `PrepLabels.py` -- this produces a pickled numpy array of the labels
 * `build_CIFAR10_dataset.py` -- combines the data, labels with some info to make a "Dataset"
 
-`nnTrain.py` will look for `Dataset` when running, as well as "Structure".
+`Main.py` will look for `dataset` when running, as well as "structure", so either rename the latter or you can pass it in as:
+
+$ ./Main.py -S sample1_struc
+
+I also include 'sample1_cp' which is a checkpoint file which can be loaded ('-f') to set the network parameters to their trained values.
 
 ###Comparison
 	
-The included `sample_log_train` is an example of output during a training run which achieves < 21% test error in under 20 minutes on a GeForce GTX 660.
+The included `sample1_log` is an example of output during a training run which achieves ~ 13% test error in around 200 epochs, 3 hours, on a GeForce GTX 660.
 
-Here is Alex K.'s cuda-convnet page, compare to the 26% "fast results" example:
+Here is Alex K.'s cuda-convnet page, compare to the 13% example:
 
 	https://code.google.com/p/cuda-convnet/
 
+A few differences: 
+* Alex's used a training/validation/test split, with multistaged training
+* Alex's GPU setup runs ~2-3 faster
