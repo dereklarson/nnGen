@@ -16,8 +16,6 @@ Download the training data and labels into your working directory and extract th
 
 $ ./Main.py -S sample1_struc
 
-I also include 'sample1_cp' which is a checkpoint file which can be loaded ('-f') to set the network parameters to their trained values.
-
 ###Comparison
 	
 The included `sample1_log` is an example of output during a training run which achieves ~ 13% test error in around 200 epochs, 3 hours, on a GeForce GTX 660.
