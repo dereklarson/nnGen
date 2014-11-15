@@ -82,7 +82,7 @@ class OutputLayer(object):
 
     def mse(self, y, use_dropout=True):
         """ Calculates the mean squared error between the prediction
-        and the label values
+        and the label values.
         """
         x = self.input_layer.output(use_dropout, depth=self.number)
         if x.ndim != 2:
@@ -90,6 +90,18 @@ class OutputLayer(object):
         # Activations, for use with regression
         y_act = self.activation(T.dot(x, self.W) + self.b)
         return T.mean(T.sqr(y_act - y))
+
+    def log_loss(self, y, use_dropout=True):
+        """ Calculates the negative log loss between the predicted and
+        label values.
+        """
+        x = self.input_layer.output(use_dropout, depth=self.number)
+        if x.ndim != 2:
+            x = x.flatten(2)
+        y_act = self.activation(T.dot(x, self.W) + self.b)
+#       y_act = T.maximum(1e-15, T.minimum(1. - 1e-15, y_act))
+        loss = -(y * T.log(y_act) + (1 - y) * T.log(1 - y_act))
+        return T.mean(loss)
 
     def negative_log_likelihood(self, y, use_dropout=True):
         """ Return the mean of the negative log-likelihood of the prediction

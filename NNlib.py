@@ -88,13 +88,21 @@ def find_type(string_in):
             pass
     return out
 
+def Sigmoid(x):
+    """ Sigmoid activation function """
+    return T.nnet.sigmoid(2*x)
+
 def STanh(x):
     """ Scaled tanh based on Y. LeCun's early suggestion """
     return 1.7159 * T.tanh(0.666666 * x)
 
-def RSTanh(x):
+def RSTanh2(x):
     """ Rectified version of the above """
     return T.maximum(0., T.minimum(1., 1.7159 * T.tanh(0.666666 * x)))
+
+def RSTanh(x):
+    """ Modified version of the above """
+    return T.maximum(0., T.minimum(1., 0.858 * T.tanh(0.666666 * x) + 0.5))
 
 def ReLU(x):
     """ Rectified linear unit """

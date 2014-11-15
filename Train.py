@@ -134,7 +134,7 @@ def create_functions_ae(layer, training, activation, batch_size,
 
     return functions
 
-def train(model, functions, params):
+def train(model, data, functions, params):
     """Generic routine to perform training on the GPU using Theano-compiled
     functions and common parameters.
 
@@ -152,7 +152,6 @@ def train(model, functions, params):
         validation_batches, error (links to where best error is tracked).
     """
     LR = params['LR']
-    Nb = params['t_batches']
 
     print "Training {} epochs at LR = {} rho = {}".format(
             params['n_epochs'], LR, params['rho'])
@@ -169,18 +168,27 @@ def train(model, functions, params):
     start_time = time.clock()
     for epoch in range(params['n_epochs']):
 
-        for batch_i in range(Nb):
+        for chunk_i in range(len(data.b_samples)):
+            data.T[0].set_value(data.raw[chunk_i])
+            data.T[1].set_value(np.asarray(data.labels[chunk_i], dtype=data.ltype))
 
-            functions['momentum'](batch_i, LR, model.gen_aug())
-            functions['update']()
+            for batch_i in range(params['t_batches'][chunk_i]):
+    
+                functions['momentum'](batch_i, LR, model.gen_aug())
+                functions['update']()
 
-            if params['verb'] and (batch_i + 1) % int(Nb / 5) == 0: print '.',
+            #if params['verb'] and (batch_i + 1) % int(Nb / 5) == 0: print '.',
+            print '.',
 
         # check the weight distribution
         model.param_status(epoch, output=open("wlog", 'a'))
 
         # compute error on test and validation set
-        c_train_error = [functions['train_E'](i, T_aug) for i in xrange(Nb)]
+        c_train_error = [functions['train_E'](i, T_aug) for i in xrange(
+                params['t_batches'][-1])]
+
+        if epoch in params['LRsched']:
+            LR = params['LRsched'][epoch]
 
         err_train = np.mean(c_train_error)
         if 'val_E' in functions:
@@ -197,16 +205,16 @@ def train(model, functions, params):
                 print 'S',
             setattr(params['error'], "best_error", err_val)
             model.save_model()
-            LR_cum -= LR
-            LR_cum = max(0, LR_cum)
+#           LR_cum -= LR
+#           LR_cum = max(0, LR_cum)
 
         else:
             print ' ',
-            LR_cum += LR
-            if LR_cum > LR_tgt:
-                LR /= 2.
-                LR_tgt /= 1.2
-                LR_cum = 0
+#           LR_cum += LR
+#           if LR_cum > LR_tgt:
+#               LR /= 2.
+#               LR_tgt /= 1.2
+#               LR_cum = 0
 
         curr_time = NNl.nice_time(time.clock() - start_time)
 
@@ -225,7 +233,7 @@ def train(model, functions, params):
             params['logfile'].write("{} {: >4} {:.6f} {:.8f}\n".format(
                     curr_time, epoch, LR, err_train))
 
-def class_probs(model, samples, batch_size, n_batches):
+def class_probs(model, data, train_params):
     """ Creates Theano function to return the probabilities of class
         membership.
 
@@ -245,9 +253,9 @@ def class_probs(model, samples, batch_size, n_batches):
     in_dims = model.x_shape[2:]
 
     p_func = theano.function([index, aug], model.out_layer.p_y_given_x(False),
-            givens={model.x: NNl.get_batch(samples, index, batch_size,
+            givens={model.x: NNl.get_batch(data.V[0], index, data.batch_n,
                 in_dims, aug)})
 
-    y = [p_func(i, model.ref_aug) for i in xrange(n_batches)]
+    y = [p_func(i, model.ref_aug) for i in range(train_params['v_batches']+1)]
 
-    return np.concatenate(y, axis=0)
+    return np.asarray(np.concatenate(y, axis=0))

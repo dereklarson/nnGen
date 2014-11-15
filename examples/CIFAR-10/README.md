@@ -12,7 +12,7 @@ Download the training data and labels into your working directory and extract th
 * `PrepLabels.py` -- this produces a pickled numpy array of the labels
 * `build_CIFAR10_dataset.py` -- combines the data, labels with some info to make a "Dataset"
 
-`Main.py` will look for `dataset` when running, as well as "structure", so either rename the latter or you can pass it in as:
+`Main.py` will look for `data` when running, as well as "structure", so either rename the latter or you can pass it in as:
 
 $ ./Main.py -S sample1_struc
 
@@ -25,5 +25,5 @@ Here is Alex K.'s cuda-convnet page, compare to the 13% example:
 	https://code.google.com/p/cuda-convnet/
 
 A few differences: 
-* Alex's used a training/validation/test split, with multistaged training
-* Alex's GPU setup runs ~2-3 faster
+* Alex used a training/validation/test split, with multistaged training
+* Alex's GPU hardware runs ~2-3 faster

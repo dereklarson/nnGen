@@ -14,18 +14,20 @@ import getopt
 import os
 import sys
 import numpy as np
+import cPickle as cp
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as MRG_RStreams
 
 import NNlib as NNl                 #Helper library with useful functions
 from Model import Model             #This is the class for NN architecture
 from Dataset import Dataset
-from Train import create_functions, create_functions_ae, train
+from Train import create_functions, create_functions_ae, train, class_probs
 
 
 def train_NN(CPFile="", datafile="rawdata", dataset=None, SFile="structure",
             train_ae=False, profiling=False, rho=0.9, LR=0.001, n_epochs=500,
-            batch_size=128, cut=-1, cv_k=10, seed=1000, verbose=True):
+            batch_size=128, cut=-1, cv_k=10, seed=1000, predict=False,
+            verbose=True):
     """The core routine for neural net training.
 
     Args:
@@ -55,12 +57,14 @@ def train_NN(CPFile="", datafile="rawdata", dataset=None, SFile="structure",
 
     """
 
+    sched_dict = {20: 0.010, 100: 0.001, 200: 0.0001}
+
     # This is passed to the theano functions for profiling
     profmode = NNl.get_profiler(profiling)
 
     # A dictionary collecting the necessary training parameters
     train_params = {'LR': LR, 'n_epochs': n_epochs, 'rho': rho,
-                    'verb': verbose}
+                'verb': verbose, 'LRsched': sched_dict}
 
     # Create RNGs, one normal one Theano, which are passed to the Builder
     rng = np.random.RandomState(seed)
@@ -77,6 +81,8 @@ def train_NN(CPFile="", datafile="rawdata", dataset=None, SFile="structure",
             train_params.update(data.V_params)
     else:
         data = Dataset(datafile, rng)
+        if predict:
+            cv_k = 1
         train_params.update(
                 data.prep_validation(batch=batch_size, cut=cut, k=cv_k))
 
@@ -121,16 +127,23 @@ def train_NN(CPFile="", datafile="rawdata", dataset=None, SFile="structure",
     #*** SGD BACKPROP ***#
     #____________________#
 
-    print '@ Training with SGD backprop'
-    T_functions = create_functions(mymodel, data, rho, profmode)
+    if predict:
+        print '@ Predicting'
+#       predict_label(mymodel, data, train_params)
+        cp.dump(class_probs(mymodel, data, train_params),
+                open("class_p", 'wb'), 2)
 
-    # Logfile made for analysis of training
-    train_params['logfile'] = NNl.prepare_log(mymodel, data.description)
-    train_params['error'] = mymodel
+    else:
+        print '@ Training with SGD backprop'
+        T_functions = create_functions(mymodel, data, rho, profmode)
 
-    train(mymodel, T_functions, train_params)
+        # Logfile made for analysis of training
+        train_params['logfile'] = NNl.prepare_log(mymodel, data.description)
+        train_params['error'] = mymodel
 
-    print "\nBest validation: ", mymodel.best_error
+        train(mymodel, data, T_functions, train_params)
+
+        print "\nBest validation: ", mymodel.best_error
 
     if profiling:
         profmode.print_summary()
@@ -148,7 +161,8 @@ def usage():
     """
     print "<exec> [ -h\tDisplay usage"
     print "\t-V\tnon-verbose"
-    print "\t-P\tprofile mode"
+    print "\t-P\tProfile mode"
+    print "\t-p\tpredict using input data and checkpoint"
     print "\t-A\ttrain autoencoder"
     for key, value in std_opts.iteritems():
         print "\t", key, "\t<", value, ">"
@@ -156,7 +170,7 @@ def usage():
 
 if __name__ == '__main__':
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hVPAl:s:n:f:d:S:b:c:C:")
+        opts, args = getopt.getopt(sys.argv[1:], "hVPpAl:s:n:f:d:S:b:c:C:")
     except getopt.GetoptError as err:
         print str(err)
         usage()
@@ -168,6 +182,8 @@ if __name__ == '__main__':
             pass_in['verbose'] = False
         elif opt == "-P":
             pass_in['profiling'] = True
+        elif opt == "-p":
+            pass_in['predict'] = True
         elif opt == "-A":
             pass_in['train_ae'] = True
         elif opt in ("-h", "--help"):

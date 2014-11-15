@@ -5,6 +5,8 @@ extra functionality such as preparing validation splits and shuffling.
 
 import cPickle as cp
 import numpy as np
+import glob
+import re
 
 import theano
 
@@ -40,12 +42,13 @@ class Dataset(object):
     """
 
     def __init__(self, infile=None, rng=None):
-        self.raw = None
-        self.labels = None
+        self.raw = []
+        self.labels = []
         self.description = ""
         self.batch_n = 128
         self.T = []
         self.V = []
+        self.b_samples = []
         self.n_samples = 0
         self.sample_dim = (0,)
         self.label_dim = 0
@@ -61,8 +64,7 @@ class Dataset(object):
         else:
             self.rng = np.random.RandomState(0)
 
-
-    def load_raw(self, infile):
+    def load_raw(self, train_prefix, validation=None):
         """ Pull in raw data from a file.
 
         This will read in a local file and prepare the contained data for
@@ -72,22 +74,31 @@ class Dataset(object):
         Args:
             infile: datafile described above
         """
-        print "Loading data from", infile
-        info, self.raw, self.labels = cp.load(open(infile, 'rb'))
-        if 'description' in info:
-            self.description = info['description']
-            print info['description']
-        if 'batch_size' in info:
-            self.batch_n = info['batch_size']
-        self.n_samples = self.raw.shape[0]
-        self.sample_dim = self.raw.shape[1:]
-        while len(self.sample_dim) < 3:
-            self.sample_dim = (1,) + self.sample_dim
+        train_files = sorted(glob.glob(train_prefix + '*'))
+        if len(train_files) == 1:
+            print "Loading data from", train_prefix
+        else:
+            suffixes = [re.findall(r'\d+', i) for i in train_files]
+            rangestr = '[{}-{}]'.format(min(suffixes)[0], max(suffixes)[0])
+            print "Loading chunks from", train_prefix, rangestr
+        for infile in train_files:
+            in_dict = cp.load(open(infile, 'rb'))
+            info = in_dict['info']
+            if 'description' in info:
+                self.description = info['description']
+                print info['description']
+            self.sample_dim = in_dict['data'].shape[1:]
+            self.b_samples.append(in_dict['data'].shape[0])
+            while len(self.sample_dim) < 3:
+                self.sample_dim = (1,) + self.sample_dim
+            in_dict['data'] = in_dict['data'].reshape((-1,) + self.sample_dim)
+            self.raw.append(in_dict['data'])
+            self.labels.append(in_dict['labels'])
 
-        self.raw = self.raw.reshape((-1,) + self.sample_dim)
+        self.n_samples = np.sum(self.b_samples)
 
-        if len(self.labels.shape) > 1:
-            self.label_dim = self.labels.shape[1]
+        if len(self.labels[0].shape) > 1:
+            self.label_dim = self.labels[0].shape[1]
             self.ltype = Tfloat
         else:
             self.label_dim = 1
@@ -109,20 +120,36 @@ class Dataset(object):
 
         if cut == -1:
             cut = ((k - 1) * self.n_samples / k)
-            cut = cut - cut % batch
+#           cut = cut - cut % batch
         if batch == -1:
             batch = self.batch_n
         else:
             self.batch_n = batch
-        T_d, T_l, self.T_Id = self.rpermute(self.raw[:cut], self.labels[:cut])
-        V_d, V_l, self.V_Id = self.rpermute(self.raw[cut:], self.labels[cut:])
-        self.T = [Tsh(np.asarray(T_d, dtype=Tfloat)),
-                    Tsh(np.asarray(T_l, dtype=self.ltype))]
-        self.V = [Tsh(np.asarray(V_d, dtype=Tfloat)),
-                    Tsh(np.asarray(V_l, dtype=self.ltype))]
-        Tlen, Vlen = len(T_d), len(V_d)
+        v_samples = self.b_samples.pop()
+        v_data = self.raw.pop()
+        v_labels = self.labels.pop()
+        while v_samples < (self.n_samples - cut):
+            v_data = np.concatenate(v_data, self.raw.pop())
+            v_labels = np.concatenate(v_labels, self.labels.pop())
+            v_samples += self.b_samples.pop()
+        diff = v_samples - (self.n_samples - cut)
+        self.raw.append(v_data[:diff])
+        self.labels.append(v_labels[:diff])
+        self.b_samples.append(diff)
+        v_samples -= diff
+        v_data = v_data[diff:]
+        v_labels = v_labels[diff:]
+#       T_d, T_l, self.T_Id = self.rpermute(self.raw[0], self.labels[0])
+#       V_d, V_l, self.V_Id = self.rpermute(v_data, v_labels)
+
+        self.T = [Tsh(np.asarray(self.raw[0], dtype=Tfloat)),
+                    Tsh(np.asarray(self.labels[0], dtype=self.ltype))]
+        self.V = [Tsh(np.asarray(v_data, dtype=Tfloat)),
+                    Tsh(np.asarray(v_labels, dtype=self.ltype))]
+        Tlen, Vlen = self.n_samples - len(v_data), len(v_data)
         print "##", Tlen, "training and", Vlen, "validation samples"
-        self.V_params = {'t_batches': Tlen / batch, 'v_batches': Vlen / batch}
+        t_batches = [i // batch for i in self.b_samples]
+        self.V_params = {'t_batches': t_batches, 'v_batches': Vlen / batch}
         return self.V_params
 
     def rpermute(self, data, labels):

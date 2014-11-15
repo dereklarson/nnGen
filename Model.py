@@ -12,7 +12,7 @@ import theano.tensor as T
 from BaseLayers import InputLayer, OutputLayer
 from FCLayer import FCLayer
 from ConvLayers import ConvLayer, PoolLayer
-from NNlib import ReLU, RSTanh, j_shift, find_type, pad_shape
+from NNlib import ReLU, RSTanh, Sigmoid, j_shift, find_type, pad_shape
 
 # These are keywords that must be used in the Structure file
 dict_data = ["type", "traits", "activation", "nKernels", "filter_size", "pool",
@@ -20,7 +20,7 @@ dict_data = ["type", "traits", "activation", "nKernels", "filter_size", "pool",
             "flipY", "jitter", "jitterX", "jitterY", "zeropad"]
 LC = {'Output': OutputLayer, 'FC': FCLayer, 'Conv': ConvLayer,
         'Input': InputLayer, 'Pool': PoolLayer}
-AC = {'ReLU': ReLU, 'RSTanh': RSTanh, 'Linear': None}
+AC = {'ReLU': ReLU, 'RSTanh': RSTanh, 'Sigmoid': Sigmoid, 'Linear': None}
 
 
 class Model(object):
@@ -120,8 +120,11 @@ class Model(object):
             self.val_error = self.out_layer.errors(self.y, False)
         else:
             self.y = T.fmatrix('y')
+#           self.cost = self.out_layer.mse(self.y, True)
+#           self.val_error = T.sqrt(self.out_layer.mse(self.y, False))
+#           self.cost = self.out_layer.log_loss(self.y, True)
             self.cost = self.out_layer.mse(self.y, True)
-            self.val_error = T.sqrt(self.out_layer.mse(self.y, False))
+            self.val_error = self.out_layer.log_loss(self.y, False)
 
 
     def read_structure(self, filename):
@@ -145,7 +148,7 @@ class Model(object):
                 elif line_in[0][0:2] == '##':
                     if len(ldict) > 0: full_dict.append(ldict)
                     ldict = {'dropout': 0., 'activation': 'Linear', 'initW': -1,
-                            'l2decay': 0.00}
+                            'l2decay': 0.00, 'jitter': 0}
 #                           'l2decay': 0.00, 'jitter': 0, 'zeropad': 0}
             if len(ldict) > 0: full_dict.append(ldict)
         return full_dict

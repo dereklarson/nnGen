@@ -7,11 +7,11 @@ In order to use the code, you need to prepare the dataset to the format I establ
 * `build_MNIST_dataset.py` -- for command line, or
 * `Dataset Builder (MNIST).ipynb` -- IPython notebook for interactivity
 
-Both of these will create a file "dataset" which should be in the folder when you run "Main.py", and both assume you have the dataset provided for the Theano tutorials. Explicitly, for the first sample you could run the following,
+Both of these will create a file "data" which should be in the folder when you run "Main.py", and both assume you have the dataset provided for the Theano tutorials. Explicitly, for the first sample you could run the following,
 
-$ ./Main.py -d dataset -S sample1_struc
+$ ./Main.py -d data -S sample1_struc
 
-though the filename 'dataset' will automatically be checked.
+though the filename 'data' will automatically be checked.
 
 You can find the dataset here:
 	
