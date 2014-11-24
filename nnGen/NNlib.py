@@ -90,7 +90,7 @@ def find_type(string_in):
 
 def Sigmoid(x):
     """ Sigmoid activation function """
-    return T.nnet.sigmoid(2*x)
+    return T.nnet.sigmoid(x)
 
 def STanh(x):
     """ Scaled tanh based on Y. LeCun's early suggestion """

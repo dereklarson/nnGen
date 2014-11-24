@@ -9,9 +9,7 @@ import numpy as np
 import cPickle as cp
 import theano.tensor as T
 
-from BaseLayers import InputLayer, OutputLayer
-from FCLayer import FCLayer
-from ConvLayers import ConvLayer, PoolLayer
+from Layers import *
 from NNlib import ReLU, RSTanh, Sigmoid, j_shift, find_type, pad_shape
 
 # These are keywords that must be used in the Structure file
