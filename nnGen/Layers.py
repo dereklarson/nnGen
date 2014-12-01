@@ -24,25 +24,31 @@ Tsh = theano.shared
 Tsig = T.nnet.sigmoid
 
 
-class InputLayer(object):
+class Layer(object):
+
+    def __init__(self, input_layer, traits, _tag):
+        self.tag = _tag
+        self.number = traits['number']
+        self.input_layer = input_layer
+
+
+class InputLayer(Layer):
 
     """ This layer will come first in any structure definition of a network.
     It is involved in applying data augmentation, such as dropout, jitter
     and flipping.
     """
 
-    def __init__(self, rngs, layer_x, Lshape, traits, activation=None):
-        self.tag = "Input"
-        self.number = traits['number']
+    def __init__(self, rngs, input_layer, Lshape, traits, activation=None):
+        super(InputLayer, self).__init__(input_layer, traits, "Input")
         self.srng = rngs[1]
-        self.x = layer_x
         self.out_shape = Lshape
         self.p_retain = (1. - traits['dropout'])
         self.traits = traits
 
     def output(self, use_dropout=False, depth=0):
         """ Provides data to next layer and applies dropout """
-        ret = self.x
+        ret = self.input_layer
         if use_dropout:
             num_str = NNl.get_num_streams(np.prod(self.out_shape))
             mask = NNl.gen_mask(self.srng, self.out_shape, self.p_retain,
@@ -51,7 +57,7 @@ class InputLayer(object):
         return ret
 
 
-class OutputLayer(object):
+class OutputLayer(Layer):
 
     """ This layer will come last in most structure definitions of a network.
     The cost calculations for supervised training are done here, as well as
@@ -69,9 +75,7 @@ class OutputLayer(object):
     """
 
     def __init__(self, rngs, input_layer, Lshape, traits, activation):
-        self.tag = "Output"
-        self.number = traits['number']
-        self.input_layer = input_layer
+        super(OutputLayer, self).__init__(input_layer, traits, "Output")
         self.out_shape = (Lshape[0], Lshape[1])
         self.W_shape = Lshape[1:]
         self.activation = activation
@@ -131,7 +135,7 @@ class OutputLayer(object):
         return T.mean(T.neq(self.class_pred(use_dropout), y))
 
 
-class FCLayer(object):
+class FCLayer(Layer):
 
     """ A generic fully-connected layer of a neural network.
 
@@ -170,10 +174,8 @@ class FCLayer(object):
     """
 
     def __init__(self, rngs, input_layer, Lshape, traits, activation):
-        self.tag = "FC"
-        self.number = traits['number']
+        super(FCLayer, self).__init__(input_layer, traits, "FC")
 
-        self.input_layer = input_layer
         self.p_retain = (1. - traits['dropout'])
         self.rng = rngs[0]
         self.srng = rngs[1]
@@ -241,7 +243,7 @@ class FCLayer(object):
         return T.mean(T.sum(T.sqr(x0 - xr), axis=1))
 
 
-class ConvLayer(object):
+class ConvLayer(Layer):
 
     """ This layer applies the convolution step to input data. This means
     rastering a square matrix ("filter") across the input. Usually, many
@@ -269,10 +271,9 @@ class ConvLayer(object):
     """
 
     def __init__(self, rngs, input_layer, Lshape, traits, activation):
-        self.tag = "Conv"
+        super(ConvLayer, self).__init__(input_layer, traits, "Conv")
+
         self.rng = rngs[0]
-        self.input_layer = input_layer
-        self.number = traits['number']
         self.l2decay = traits['l2decay']
         filter_shape = Lshape[1]
         # The number of input channels must match number of filter channels
@@ -300,7 +301,7 @@ class ConvLayer(object):
         return self.conv_out
 
 
-class PoolLayer(object):
+class PoolLayer(Layer):
 
     """ This layer simply performs a MaxOut pooling, where a downsample
     factor N is specified, and for each NxN contiguous block of input the
@@ -308,9 +309,8 @@ class PoolLayer(object):
     """
 
     def __init__(self, rngs, input_layer, Lshape, traits, activation):
-        self.tag = "Pool"
-        self.number = traits['number']
-        self.input_layer = input_layer
+        super(PoolLayer, self).__init__(input_layer, traits, "Pool")
+
         self.pool_size = (traits['pool'], traits['pool'])
         self.activation = activation
         self.l2decay = traits['l2decay']

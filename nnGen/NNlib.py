@@ -60,7 +60,7 @@ def prepare_log(model, description, fname="log_train"):
     for layer in model.layer_info:
         logfile.write("#")
         model.layer_splash(layer, logfile)
-    logfile.write("#time    epoch  LR      test      train     \n")
+    logfile.write("#time    epoch  LR      train     test      \n")
     return logfile
 
 def get_num_streams(size):

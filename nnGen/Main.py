@@ -25,7 +25,7 @@ from Train import create_functions, create_functions_ae, train, class_probs
 
 
 def train_NN(CPFile="", datafile="rawdata", dataset=None, SFile="structure",
-            train_ae=False, profiling=False, rho=0.9, LR=0.001, n_epochs=500,
+            train_ae=False, profiling=False, rho=0.9, LR=0.010, n_epochs=500,
             batch_size=128, cut=-1, cv_k=10, seed=1000, predict=False,
             verbose=True):
     """The core routine for neural net training.
@@ -57,7 +57,7 @@ def train_NN(CPFile="", datafile="rawdata", dataset=None, SFile="structure",
 
     """
 
-    sched_dict = {20: 0.010, 100: 0.001, 200: 0.0001}
+    sched_dict = {20: 0.005, 100: 0.001, 200: 0.0001}
 
     # This is passed to the theano functions for profiling
     profmode = NNl.get_profiler(profiling)

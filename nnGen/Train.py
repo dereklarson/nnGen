@@ -152,14 +152,13 @@ def train(model, data, functions, params):
         validation_batches, error (links to where best error is tracked).
     """
     LR = params['LR']
+    Nb = 0
+    for chunk_i in range(len(data.b_samples)):
+        Nb += params['t_batches'][chunk_i]
 
     print "Training {} epochs at LR = {} rho = {}".format(
             params['n_epochs'], LR, params['rho'])
-
-    # If an iteration doesn't improve the validation score, we add the LR
-    # to an accumulator and will reduce the LR if LR_tgt is reached
-    LR_tgt = 8 * LR
-    LR_cum = 0
+    print "Using schedule:", sorted(params['LRsched'].items())
 
     # reference augmentation for checking error (centered, no flip)
     T_aug = model.ref_aug
@@ -167,6 +166,7 @@ def train(model, data, functions, params):
     # Main training loop
     start_time = time.clock()
     for epoch in range(params['n_epochs']):
+        ct = 0
 
         for chunk_i in range(len(data.b_samples)):
             data.T[0].set_value(data.raw[chunk_i])
@@ -177,8 +177,10 @@ def train(model, data, functions, params):
                 functions['momentum'](batch_i, LR, model.gen_aug())
                 functions['update']()
 
-            #if params['verb'] and (batch_i + 1) % int(Nb / 5) == 0: print '.',
-            print '.',
+                if params['verb'] and (ct + batch_i + 1) % int(Nb / 5) == 0:
+                    print '.',
+
+            ct += params['t_batches'][chunk_i]
 
         # check the weight distribution
         model.param_status(epoch, output=open("wlog", 'a'))
@@ -205,16 +207,9 @@ def train(model, data, functions, params):
                 print 'S',
             setattr(params['error'], "best_error", err_val)
             model.save_model()
-#           LR_cum -= LR
-#           LR_cum = max(0, LR_cum)
 
         else:
             print ' ',
-#           LR_cum += LR
-#           if LR_cum > LR_tgt:
-#               LR /= 2.
-#               LR_tgt /= 1.2
-#               LR_cum = 0
 
         curr_time = NNl.nice_time(time.clock() - start_time)
 

@@ -1,4 +1,13 @@
 #!/home/derek/anaconda/bin/python
+""" Generates a feed-forward MLP structure, setting a few parameters:
+    number of layers
+    neurons per layer
+    output neurons
+    dropout
+    input dropout
+    jitter
+    L2 decay
+"""
 import os, sys, getopt
 
 def usage():
@@ -6,36 +15,44 @@ def usage():
     sys.exit()
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "hl:s:d:b:r:")
+    opts, args = getopt.getopt(sys.argv[1:], "hd:D:j:l:L:n:o:")
 except getopt.GetoptError as err:
     print str(err)
     usage()
 #default values
 n_layers = 2
-neurons = 500
+neurons = 800
+o_neurons = 10
 dropout = 0.5
-i_dropout = 0.5
+i_dropout = 0.2
 decay = 0.0
+jitter = 0
 for opt, val in opts:
-    if opt == '-l':
-        n_layers = int(val)
-    elif opt == '-s':
-        neurons = int(val)
-    elif opt == '-d':
+    if opt == '-d':
         dropout = float(val)
-    elif opt == '-b':
+    elif opt == '-D':
         i_dropout = float(val)
-    elif opt == '-r':
+    elif opt == '-j':
+        jitter = int(val)
+    elif opt == '-l':
+        n_layers = int(val)
+    elif opt == '-L':
         decay = float(val)
+    elif opt == '-n':
+        neurons = int(val)
+    elif opt == '-o':
+        o_neurons = int(val)
     elif opt in ("-h", "--help"):
         usage()
     else:
         assert False, "unhandled option"
-print n_layers, neurons, dropout
+
+print 'Input dropout:', i_dropout
+print 'Layers:', n_layers, 'by', neurons, 'dropout:', dropout, 'L2:', decay
+print 'Output neurons:', o_neurons
 
 #Write input layer
-S_file = open("Structure", 'w')
-jitter = 0
+S_file = open("structure", 'w')
 flipX = flipY = 0
 S_file.write("#HDR:  Structure for CNN\n##layer 0\ntype:\t\tInput\n")
 S_file.write("jitter:\t\t" + str(jitter) + "\n")
@@ -52,6 +69,6 @@ for i in range(n_layers):
     S_file.write("activation:\tReLU\n\n")
 
 #Write the output layer
-S_file.write("##layer out\ntype:\t\tOutput\nneurons:\t2\n")
-S_file.write("activation:\tRectScaleTanh\n")
+S_file.write("##layer out\ntype:\t\tOutput\nneurons:\t"+ str(o_neurons) +"\n")
+#S_file.write("activation:\tRectScaleTanh\n")
 
