@@ -10,4 +10,4 @@ labels = np.concatenate((train[1], valid[1]))
 info = {'description': "MNIST 60k, 1x28x28 with norm [0,1)",\
         'cut': 50000, 'channels': 1}
 
-cp.dump([info, data, labels], open("dataset", 'wb'), 2)
+cp.dump({'info': info, 'data': data, 'labels': labels}, open("dataset", 'wb'), 2)
